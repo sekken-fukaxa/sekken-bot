@@ -1,0 +1,25 @@
+name: uptime-watch
+
+# 30分ごとに公式サイトと n8n (Railway) の生存を確認する。
+# 成功したら healthchecks.io へ ping し、失敗したらこの実行自体が失敗して
+# GitHub の通知が飛ぶ。n8n 側の監視 (uptime-watch) と互いに見張り合う形。
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check official site
+        run: curl -fsS -o /dev/null --max-time 30 https://sekken-fukaxa.github.io/
+      - name: Check n8n watcher
+        run: curl -fsS --max-time 30 https://primary-production-8cd94.up.railway.app/webhook/uptime-now
+      - name: Ping healthchecks (actions alive)
+        env:
+          HC_PING_URL: ${{ secrets.HC_ACTIONS_PING_URL }}
+        run: |
+          if [ -n "$HC_PING_URL" ]; then
+            curl -fsS --max-time 30 "$HC_PING_URL" || true
+          fi
